@@ -1,0 +1,867 @@
+REPORT zso_invoice_track_system.
+
+*SALES ORDER MANGEMENT REPORT WITH ALV GRID(VBAK, VBAP, AND VBFA INTEGRATION)
+
+TYPES : BEGIN OF ty_vbak,
+          vbeln TYPE vbeln_va,     " Sales Document
+          erdat TYPE erdat,        " Date
+          ernam TYPE ernam,        " Name of Person
+          angdt TYPE angdt_v,      " Quatation/inquiry is valid from
+          vkorg TYPE vkorg,        " Sales Organization
+        END OF ty_vbak.
+
+TYPES : BEGIN OF ty_vbap,
+          vbeln  TYPE vbeln_va,     " Sales Document
+          posnr  TYPE posnr_va,     " Sales Document Item
+          matnr  TYPE matnr,        " Material
+          kwmeng TYPE kwmeng,       " Quantity
+          netpr  TYPE netpr,        " Net Value
+        END OF ty_vbap.
+
+TYPES : BEGIN OF ty_vbfa,
+          vbelv   TYPE  vbeln_von,   " Preceding SD
+          posnv   TYPE posnr_von,    " Preceding item SD
+          vbeln   TYPE  vbeln_nach,  " Subsequent SD
+          posnn   TYPE  posnr_nach,  " Subsequent SD
+          vbtyp_n TYPE  vbtyp_n,     " Document Category
+        END OF ty_vbfa.
+
+*INQUERY DETAILS STRUCTURE
+TYPES : BEGIN OF ty_inquiry,
+          vbeln   TYPE vbeln_va,     " Sales Document
+          erdat   TYPE erdat,        " Date
+          ernam   TYPE ernam,        " Name of Person
+          angdt   TYPE angdt_v,      " Quatation/inquiry is valid from
+          vkorg   TYPE vkorg,        " Sales Organization
+          posnr   TYPE posnr_va,     " Sales Document Item
+          matnr   TYPE matnr,        " Material
+          kwmeng  TYPE kwmeng,       " Quantity
+          netpr   TYPE netpr,        " Net Value
+          vbelv   TYPE  vbeln_von,   " Preceding SD
+          posnv   TYPE posnr_von,    " Preceding item SD
+          posnn   TYPE  posnr_nach,  " Subsequent SD
+          vbtyp_n TYPE  vbtyp_n,     " Document Category
+        END OF ty_inquiry.
+
+*QUOTATION DETAILS STRUCTURE
+TYPES : BEGIN OF ty_quotation,
+            vbeln   TYPE vbeln_va,     " Sales Document
+          erdat   TYPE erdat,        " Date
+          ernam   TYPE ernam,        " Name of Person
+          angdt   TYPE angdt_v,      " Quatation/inquiry is valid from
+          vkorg   TYPE vkorg,        " Sales Organization
+          posnr   TYPE posnr_va,     " Sales Document Item
+          matnr   TYPE matnr,        " Material
+          kwmeng  TYPE kwmeng,       " Quantity
+          netpr   TYPE netpr,        " Net Value
+          vbelv   TYPE  vbeln_von,   " Preceding SD
+          posnv   TYPE posnr_von,    " Preceding item SD
+*          vbeln   TYPE  vbeln_nach,  " Subsequent SD
+          posnn   TYPE  posnr_nach,  " Subsequent SD
+          vbtyp_n TYPE  vbtyp_n,     " Document Category
+        END OF ty_quotation.
+
+TYPES : BEGIN OF ty_salesorder,
+            vbeln   TYPE vbeln_va,     " Sales Document
+          erdat   TYPE erdat,        " Date
+          ernam   TYPE ernam,        " Name of Person
+          angdt   TYPE angdt_v,      " Quatation/inquiry is valid from
+          vkorg   TYPE vkorg,        " Sales Organization
+          posnr   TYPE posnr_va,     " Sales Document Item
+          matnr   TYPE matnr,        " Material
+          kwmeng  TYPE kwmeng,       " Quantity
+          netpr   TYPE netpr,        " Net Value
+          vbelv   TYPE  vbeln_von,   " Preceding SD
+          posnv   TYPE posnr_von,    " Preceding item SD
+*          vbeln   TYPE  vbeln_nach,  " Subsequent SD
+          posnn   TYPE  posnr_nach,  " Subsequent SD
+          vbtyp_n TYPE  vbtyp_n,     " Document Category
+  END OF ty_salesorder.
+
+TYPES : BEGIN OF ty_delivery,
+             vbeln   TYPE vbeln_va,     " Sales Document
+          erdat   TYPE erdat,        " Date
+          ernam   TYPE ernam,        " Name of Person
+          angdt   TYPE angdt_v,      " Quatation/inquiry is valid from
+          vkorg   TYPE vkorg,        " Sales Organization
+          posnr   TYPE posnr_va,     " Sales Document Item
+          matnr   TYPE matnr,        " Material
+          kwmeng  TYPE kwmeng,       " Quantity
+          netpr   TYPE netpr,        " Net Value
+          vbelv   TYPE  vbeln_von,   " Preceding SD
+          posnv   TYPE posnr_von,    " Preceding item SD
+*          vbeln   TYPE  vbeln_nach,  " Subsequent SD
+          posnn   TYPE  posnr_nach,  " Subsequent SD
+          vbtyp_n TYPE  vbtyp_n,     " Document Category
+  END OF ty_delivery.
+
+TYPES : BEGIN OF ty_invoice,
+             vbeln   TYPE vbeln_va,     " Sales Document
+          erdat   TYPE erdat,        " Date
+          ernam   TYPE ernam,        " Name of Person
+          angdt   TYPE angdt_v,      " Quatation/inquiry is valid from
+          vkorg   TYPE vkorg,        " Sales Organization
+          posnr   TYPE posnr_va,     " Sales Document Item
+          matnr   TYPE matnr,        " Material
+          kwmeng  TYPE kwmeng,       " Quantity
+          netpr   TYPE netpr,        " Net Value
+          vbelv   TYPE  vbeln_von,   " Preceding SD
+          posnv   TYPE posnr_von,    " Preceding item SD
+*          vbeln   TYPE  vbeln_nach,  " Subsequent SD
+          posnn   TYPE  posnr_nach,  " Subsequent SD
+          vbtyp_n TYPE  vbtyp_n,     " Document Category
+  END OF ty_invoice.
+
+DATA : gt_vbak      TYPE TABLE OF ty_vbak,
+       gs_vbak      TYPE ty_vbak,
+       gt_vbap      TYPE TABLE OF ty_vbap,
+       gs_vbap      TYPE ty_vbap,
+       gt_vbfa      TYPE TABLE OF ty_vbfa,
+       gs_vbfa      TYPE ty_vbfa,
+       gt_inquiry   TYPE TABLE OF ty_inquiry,
+       gs_inquiry   TYPE ty_inquiry,
+       gt_quotation TYPE TABLE OF ty_quotation,
+       gs_quotation TYPE ty_quotation,
+       gt_salesorder TYPE TABLE OF ty_salesorder,
+       gs_salesorder TYPE ty_salesorder,
+       gt_delivery TYPE TABLE OF ty_delivery,
+       gs_delivery TYPE ty_delivery,
+       gt_invoice TYPE TABLE OF ty_invoice,
+       gs_invoice TYPE ty_invoice,
+       lv_delivery TYPE vbak-vbeln,
+       v1           TYPE vbak-vbeln,
+       lv_quotation TYPE vbak-vbeln,
+       lv_salesorder TYPE vbak-vbeln.
+
+SELECT-OPTIONS : s_vbeln FOR v1.
+
+START-OF-SELECTION.
+  PERFORM getinquiry.
+  PERFORM prepareinquiry.
+  PERFORM displayinquiry.
+*&---------------------------------------------------------------------*
+*&      Form  GETINQUIRY
+*&---------------------------------------------------------------------*
+FORM getinquiry .
+  SELECT vbeln
+         erdat
+         ernam
+         angdt
+         vkorg
+    FROM vbak
+    INTO TABLE gt_vbak
+    WHERE vbeln IN s_vbeln.
+
+  IF gt_vbak IS NOT INITIAL.
+    SELECT vbeln
+           posnr
+           matnr
+           kwmeng
+           netpr
+      FROM vbap
+      INTO TABLE gt_vbap
+      FOR ALL ENTRIES IN gt_vbak
+      WHERE vbeln = gt_vbak-vbeln.
+
+    IF sy-subrc = 0.
+      SORT gt_vbap BY vbeln posnr.
+    ENDIF.
+  ENDIF.
+
+  IF gt_vbap IS NOT INITIAL.
+    SELECT vbelv
+           posnv
+           vbeln
+           posnn
+           vbtyp_n
+      FROM vbfa
+      INTO TABLE gt_vbfa
+      FOR ALL ENTRIES IN gt_vbap
+      WHERE vbeln = gt_vbap-vbeln
+      AND posnn = gt_vbap-posnr
+      AND vbtyp_n = 'A'.
+
+    IF sy-subrc = 0.
+      SORT gt_vbfa BY vbeln posnn.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  PREPAREINQUIRY
+*&---------------------------------------------------------------------*
+FORM prepareinquiry .
+  REFRESH gt_inquiry.
+  LOOP AT gt_vbak INTO gs_vbak.
+    gs_inquiry-vbeln = gs_vbak-vbeln.
+    gs_inquiry-erdat = gs_vbak-erdat.
+    gs_inquiry-ernam = gs_vbak-ernam.
+    gs_inquiry-angdt = gs_vbak-angdt.
+    gs_inquiry-vkorg = gs_vbak-vkorg.
+
+    LOOP AT gt_vbap INTO gs_vbap WHERE vbeln = gs_vbak-vbeln.
+*  gs_inquiry-vbeln = gs_vbap-vbeln.
+      gs_inquiry-posnr = gs_vbap-posnr.
+      gs_inquiry-matnr = gs_vbap-matnr.
+      gs_inquiry-kwmeng = gs_vbap-kwmeng.
+      gs_inquiry-netpr = gs_vbap-netpr.
+      LOOP AT gt_vbfa INTO gs_vbfa WHERE vbeln = gs_vbap-vbeln
+                   AND posnn = gs_vbap-posnr.
+        gs_inquiry-vbelv =    gs_vbfa-vbelv.
+        gs_inquiry-posnv =    gs_vbfa-posnv.
+*  gs_inquiry-vbeln =    gs_vbfa-vbeln.
+        gs_inquiry-posnn =    gs_vbfa-posnn.
+        gs_inquiry-vbtyp_n =  gs_vbfa-vbtyp_n.
+        APPEND gs_inquiry TO gt_inquiry.
+        CLEAR gs_inquiry.
+      ENDLOOP.
+    ENDLOOP.
+  ENDLOOP.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAYINQUIRY
+*&---------------------------------------------------------------------*
+FORM displayinquiry .
+  DATA : lt_fcat   TYPE slis_t_fieldcat_alv,
+         ls_fcat   TYPE slis_fieldcat_alv,
+         l_pos     TYPE i,
+         gs_layout TYPE slis_layout_alv,
+         gt_event TYPE slis_t_event,
+         gs_event TYPE slis_alv_event.
+
+  PERFORM fillfcat TABLES lt_fcat USING :  'vbeln' 'Sales Document' CHANGING l_pos,
+                                'erdat' 'Date' CHANGING l_pos,
+                                'ernam' 'Name of Person' CHANGING l_pos,
+                                'angdt' 'Quatation/inquiry is valid from' CHANGING l_pos,
+                                'vkorg' 'Sales Organization' CHANGING l_pos,
+                                'posnr' 'Sales Document Item' CHANGING l_pos,
+                                'matnr' 'Material' CHANGING l_pos,
+                                'kwmeng'  'Quantity' CHANGING l_pos,
+                                'netpr'   'Net Value' CHANGING l_pos,
+                                'vbelv'   'Preceding SD' CHANGING l_pos,
+                                'posnv'   'Preceding item SD' CHANGING l_pos,
+                                'posnn'   'Subsequent SD' CHANGING l_pos,
+                                'vbtyp_n' 'Document Category' CHANGING l_pos.
+
+  gs_layout-colwidth_optimize = 'X'.
+
+ gs_event-name = 'TOP_OF_PAGE'.
+ gs_event-form = 'TOP_INQUIRY'.
+ APPEND gs_event TO gt_event.
+ CLEAR gs_event.
+
+ gs_event-name = 'USER_COMMAND'.
+ gs_event-form = 'UC1'.
+ APPEND gs_event TO gt_event.
+ CLEAR gs_event.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = sy-cprog
+      is_layout          = gs_layout
+      it_fieldcat        = lt_fcat
+     IT_EVENTS          = gt_event
+    TABLES
+      t_outtab           = gt_inquiry.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  FILLFCAT
+*&---------------------------------------------------------------------*
+FORM fillfcat  TABLES   lt_fcat TYPE slis_t_fieldcat_alv
+               USING    field
+                        descr
+               CHANGING l_pos.
+  DATA : ls_fcat TYPE slis_fieldcat_alv.
+  l_pos = l_pos + 1.
+  ls_fcat-fieldname = field.
+  ls_fcat-seltext_m = descr.
+  ls_fcat-col_pos = l_pos.
+  APPEND ls_fcat TO lt_fcat.
+  CLEAR ls_fcat.
+
+ENDFORM.
+
+FORM TOP_INQUIRY.
+  DATA : lt_list TYPE slis_t_listheader,
+         ls_list TYPE slis_listheader.
+  ls_list-typ = 'H'.
+  ls_list-info = 'INQUERY DETAILS'.
+  APPEND ls_list TO lt_list.
+  CLEAR ls_list.
+
+  CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+    EXPORTING
+      it_list_commentary       = lt_list.
+ENDFORM.
+
+FORM UC1 USING A LIKE sy-ucomm B TYPE slis_selfield.
+  IF B-fieldname = 'vbeln'.
+    PERFORM getquotation.
+    PERFORM preparequotation.
+    PERFORM displayquotation.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GETQUOTATION
+*&---------------------------------------------------------------------*
+FORM getquotation .
+    SELECT vbeln
+         erdat
+         ernam
+         angdt
+         vkorg
+    FROM vbak
+    INTO TABLE gt_vbak
+    WHERE vbeln IN s_vbeln.
+
+  IF gt_vbak IS NOT INITIAL.
+    SELECT vbeln
+           posnr
+           matnr
+           kwmeng
+           netpr
+      FROM vbap
+      INTO TABLE gt_vbap
+      FOR ALL ENTRIES IN gt_vbak
+      WHERE vbeln = gt_vbak-vbeln.
+
+    IF sy-subrc = 0.
+      SORT gt_vbap BY vbeln posnr.
+    ENDIF.
+  ENDIF.
+
+  IF gt_vbap IS NOT INITIAL.
+    SELECT vbelv
+           posnv
+           vbeln
+           posnn
+           vbtyp_n
+      FROM vbfa
+      INTO TABLE gt_vbfa
+      FOR ALL ENTRIES IN gt_inquiry
+      WHERE vbelv = gt_inquiry-vbeln
+      AND vbtyp_n = 'B'.
+
+    IF sy-subrc = 0.
+      SORT gt_vbfa BY vbeln posnn.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  PREPAREINQUIRY
+*&---------------------------------------------------------------------*
+FORM preparequotation .
+  REFRESH gt_quotation.
+  LOOP AT gt_vbak INTO gs_vbak.
+    gs_quotation-vbeln = gs_vbak-vbeln.
+    gs_quotation-erdat = gs_vbak-erdat.
+    gs_quotation-ernam = gs_vbak-ernam.
+    gs_quotation-angdt = gs_vbak-angdt.
+    gs_quotation-vkorg = gs_vbak-vkorg.
+
+    LOOP AT gt_vbap INTO gs_vbap WHERE vbeln = gs_vbak-vbeln.
+*  gs_inquiry-vbeln = gs_vbap-vbeln.
+      gs_quotation-posnr = gs_vbap-posnr.
+      gs_quotation-matnr = gs_vbap-matnr.
+      gs_quotation-kwmeng = gs_vbap-kwmeng.
+      gs_quotation-netpr = gs_vbap-netpr.
+      LOOP AT gt_vbfa INTO gs_vbfa WHERE vbeln = gs_vbap-vbeln
+                   AND posnn = gs_vbap-posnr.
+        gs_quotation-vbelv =    gs_vbfa-vbelv.
+        gs_quotation-posnv =    gs_vbfa-posnv.
+*  gs_inquiry-vbeln =    gs_vbfa-vbeln.
+        gs_quotation-posnn =    gs_vbfa-posnn.
+        gs_quotation-vbtyp_n =  gs_vbfa-vbtyp_n.
+        APPEND gs_quotation TO gt_quotation.
+        CLEAR gs_quotation.
+      ENDLOOP.
+    ENDLOOP.
+  ENDLOOP.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAYQUOTATION
+*&---------------------------------------------------------------------*
+FORM displayquotation .
+ DATA : lt_fcat1   TYPE slis_t_fieldcat_alv,
+         ls_fcat1   TYPE slis_fieldcat_alv,
+         l_pos1    TYPE i,
+         gs_layout1 TYPE slis_layout_alv,
+         gt_event1 TYPE slis_t_event,
+         gs_event1 TYPE slis_alv_event.
+
+  PERFORM fillfcat TABLES lt_fcat1 USING :  'vbeln' 'Sales Document' CHANGING l_pos1,
+                                'erdat' 'Date' CHANGING l_pos1,
+                                'ernam' 'Name of Person' CHANGING l_pos1,
+                                'angdt' 'Quatation/inquiry is valid from' CHANGING l_pos1,
+                                'vkorg' 'Sales Organization' CHANGING l_pos1,
+                                'posnr' 'Sales Document Item' CHANGING l_pos1,
+                                'matnr' 'Material' CHANGING l_pos1,
+                                'kwmeng'  'Quantity' CHANGING l_pos1,
+                                'netpr'   'Net Value' CHANGING l_pos1,
+                                'vbelv'   'Preceding SD' CHANGING l_pos1,
+                                'posnv'   'Preceding item SD' CHANGING l_pos1,
+                                'posnn'   'Subsequent SD' CHANGING l_pos1,
+                                'vbtyp_n' 'Document Category' CHANGING l_pos1.
+
+  gs_layout1-colwidth_optimize = 'X'.
+
+ gs_event1-name = 'TOP_OF_PAGE'.
+ gs_event1-form = 'TOP_QUOTATION'.
+ APPEND gs_event1 TO gt_event1.
+ CLEAR gs_event1.
+
+ gs_event1-name = 'USER_COMMAND'.
+ gs_event1-form = 'UC2'.
+ APPEND gs_event1 TO gt_event1.
+ CLEAR gs_event1.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = sy-cprog
+      is_layout          = gs_layout1
+      it_fieldcat        = lt_fcat1
+     IT_EVENTS          = gt_event1
+    TABLES
+      t_outtab           = gt_quotation.
+
+ENDFORM.
+
+FORM TOP_QUOTATION.
+    DATA : lt_list1 TYPE slis_t_listheader,
+         ls_list1 TYPE slis_listheader.
+  ls_list1-typ = 'H'.
+  ls_list1-info = 'QUATATION DETAILS'.
+  APPEND ls_list1 TO lt_list1.
+  CLEAR ls_list1.
+
+  CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+    EXPORTING
+      it_list_commentary       = lt_list1.
+ENDFORM.
+
+FORM UC2 USING A LIKE sy-ucomm B TYPE slis_selfield.
+  IF B-fieldname = 'vbeln'.
+    lv_quotation = b-value.
+    PERFORM getsalesorder.
+    PERFORM preparesalesorder.
+    PERFORM displaysalesorder.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GETSALESORDER
+*&---------------------------------------------------------------------*
+FORM getsalesorder .
+    SELECT vbeln
+         erdat
+         ernam
+         angdt
+         vkorg
+    FROM vbak
+    INTO TABLE gt_vbak
+    WHERE vbeln IN s_vbeln.
+
+  IF gt_vbak IS NOT INITIAL.
+    SELECT vbeln
+           posnr
+           matnr
+           kwmeng
+           netpr
+      FROM vbap
+      INTO TABLE gt_vbap
+      FOR ALL ENTRIES IN gt_vbak
+      WHERE vbeln = gt_vbak-vbeln.
+
+    IF sy-subrc = 0.
+      SORT gt_vbap BY vbeln posnr.
+    ENDIF.
+  ENDIF.
+
+  IF gt_vbap IS NOT INITIAL.
+    SELECT vbelv
+           posnv
+           vbeln
+           posnn
+           vbtyp_n
+      FROM vbfa
+      INTO TABLE gt_vbfa
+      FOR ALL ENTRIES IN gt_vbap
+      WHERE vbelv = gt_vbap-vbeln
+      AND vbtyp_n = 'C'.
+
+    IF sy-subrc = 0.
+      SORT gt_vbfa BY vbeln posnn.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  PREPARESALESORDER
+*&---------------------------------------------------------------------*
+FORM preparesalesorder .
+  REFRESH gt_salesorder.
+  LOOP AT gt_vbak INTO gs_vbak.
+    gs_salesorder-vbeln = gs_vbak-vbeln.
+    gs_salesorder-erdat = gs_vbak-erdat.
+    gs_salesorder-ernam = gs_vbak-ernam.
+    gs_salesorder-angdt = gs_vbak-angdt.
+    gs_salesorder-vkorg = gs_vbak-vkorg.
+
+    LOOP AT gt_vbap INTO gs_vbap WHERE vbeln = gs_vbak-vbeln.
+*  gs_inquiry-vbeln = gs_vbap-vbeln.
+      gs_salesorder-posnr = gs_vbap-posnr.
+      gs_salesorder-matnr = gs_vbap-matnr.
+      gs_salesorder-kwmeng = gs_vbap-kwmeng.
+      gs_salesorder-netpr = gs_vbap-netpr.
+      LOOP AT gt_vbfa INTO gs_vbfa WHERE vbeln = gs_vbap-vbeln
+                   AND posnn = gs_vbap-posnr.
+        gs_salesorder-vbelv =    gs_vbfa-vbelv.
+        gs_salesorder-posnv =    gs_vbfa-posnv.
+*  gs_inquiry-vbeln =    gs_vbfa-vbeln.
+        gs_salesorder-posnn =    gs_vbfa-posnn.
+        gs_salesorder-vbtyp_n =  gs_vbfa-vbtyp_n.
+        APPEND gs_salesorder TO gt_salesorder.
+        CLEAR gs_salesorder.
+      ENDLOOP.
+    ENDLOOP.
+  ENDLOOP.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAYSALESORDER
+*&---------------------------------------------------------------------*
+FORM displaysalesorder .
+ DATA : lt_fcat2   TYPE slis_t_fieldcat_alv,
+         ls_fcat2   TYPE slis_fieldcat_alv,
+         l_pos2    TYPE i,
+         gs_layout2 TYPE slis_layout_alv,
+         gt_event2 TYPE slis_t_event,
+         gs_event2 TYPE slis_alv_event.
+
+  PERFORM fillfcat TABLES lt_fcat2 USING :  'vbeln' 'Sales Document' CHANGING l_pos2,
+                                'erdat' 'Date' CHANGING l_pos2,
+                                'ernam' 'Name of Person' CHANGING l_pos2,
+                                'angdt' 'Quatation/inquiry is valid from' CHANGING l_pos2,
+                                'vkorg' 'Sales Organization' CHANGING l_pos2,
+                                'posnr' 'Sales Document Item' CHANGING l_pos2,
+                                'matnr' 'Material' CHANGING l_pos2,
+                                'kwmeng'  'Quantity' CHANGING l_pos2,
+                                'netpr'   'Net Value' CHANGING l_pos2,
+                                'vbelv'   'Preceding SD' CHANGING l_pos2,
+                                'posnv'   'Preceding item SD' CHANGING l_pos2,
+                                'posnn'   'Subsequent SD' CHANGING l_pos2,
+                                'vbtyp_n' 'Document Category' CHANGING l_pos2.
+
+  gs_layout2-colwidth_optimize = 'X'.
+
+ gs_event2-name = 'TOP_OF_PAGE'.
+ gs_event2-form = 'TOP_SALESORDER'.
+ APPEND gs_event2 TO gt_event2.
+ CLEAR gs_event2.
+
+ gs_event2-name = 'USER_COMMAND'.
+ gs_event2-form = 'UC3'.
+ APPEND gs_event2 TO gt_event2.
+ CLEAR gs_event2.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = sy-cprog
+      is_layout          = gs_layout2
+      it_fieldcat        = lt_fcat2
+     IT_EVENTS          = gt_event2
+    TABLES
+      t_outtab           = gt_salesorder.
+ENDFORM.
+FORM TOP_SALESORDER.
+    DATA : lt_list2 TYPE slis_t_listheader,
+         ls_list2 TYPE slis_listheader.
+  ls_list2-typ = 'H'.
+  ls_list2-info = 'SALES ORDER DETAILS'.
+  APPEND ls_list2 TO lt_list2.
+  CLEAR ls_list2.
+
+  CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+    EXPORTING
+      it_list_commentary       = lt_list2.
+ENDFORM.
+
+FORM UC3 USING A LIKE sy-ucomm B TYPE slis_selfield.
+  IF B-fieldname = 'vbeln'.
+    lv_salesorder = b-value.
+    PERFORM getdelivery.
+    PERFORM preparedelivery.
+    PERFORM displaydelivery.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GETDELIVERY
+*&---------------------------------------------------------------------*
+FORM getdelivery .
+    SELECT vbeln
+         erdat
+         ernam
+         angdt
+         vkorg
+    FROM vbak
+    INTO TABLE gt_vbak
+    WHERE vbeln IN s_vbeln.
+
+  IF gt_vbak IS NOT INITIAL.
+    SELECT vbeln
+           posnr
+           matnr
+           kwmeng
+           netpr
+      FROM vbap
+      INTO TABLE gt_vbap
+      FOR ALL ENTRIES IN gt_vbak
+      WHERE vbeln = gt_vbak-vbeln.
+
+    IF sy-subrc = 0.
+      SORT gt_vbap BY vbeln posnr.
+    ENDIF.
+  ENDIF.
+
+  IF gt_vbap IS NOT INITIAL.
+    SELECT vbelv
+           posnv
+           vbeln
+           posnn
+           vbtyp_n
+      FROM vbfa
+      INTO TABLE gt_vbfa
+      FOR ALL ENTRIES IN gt_vbap
+      WHERE vbelv = gt_vbap-vbeln
+      AND vbtyp_n = 'J'.
+
+    IF sy-subrc = 0.
+      SORT gt_vbfa BY vbeln posnn.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  PREPAREDELIVERY
+*&---------------------------------------------------------------------*
+FORM preparedelivery .
+  REFRESH gt_delivery.
+  LOOP AT gt_vbak INTO gs_vbak.
+    gs_delivery-vbeln = gs_vbak-vbeln.
+    gs_delivery-erdat = gs_vbak-erdat.
+    gs_delivery-ernam = gs_vbak-ernam.
+    gs_delivery-angdt = gs_vbak-angdt.
+    gs_delivery-vkorg = gs_vbak-vkorg.
+
+    LOOP AT gt_vbap INTO gs_vbap WHERE vbeln = gs_vbak-vbeln.
+*  gs_inquiry-vbeln = gs_vbap-vbeln.
+      gs_delivery-posnr = gs_vbap-posnr.
+      gs_delivery-matnr = gs_vbap-matnr.
+      gs_delivery-kwmeng = gs_vbap-kwmeng.
+      gs_delivery-netpr = gs_vbap-netpr.
+      LOOP AT gt_vbfa INTO gs_vbfa WHERE vbelv = gs_vbap-vbeln.
+*                   AND posnn = gs_vbap-posnr.
+        gs_delivery-vbelv =    gs_vbfa-vbelv.
+        gs_delivery-posnv =    gs_vbfa-posnv.
+*  gs_inquiry-vbeln =    gs_vbfa-vbeln.
+        gs_delivery-posnn =    gs_vbfa-posnn.
+        gs_delivery-vbtyp_n =  gs_vbfa-vbtyp_n.
+        APPEND gs_delivery TO gt_delivery.
+        CLEAR gs_delivery.
+      ENDLOOP.
+    ENDLOOP.
+  ENDLOOP.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAYDELIVERY
+*&---------------------------------------------------------------------*
+FORM displaydelivery .
+ DATA : lt_fcat3   TYPE slis_t_fieldcat_alv,
+         ls_fcat3   TYPE slis_fieldcat_alv,
+         l_pos3    TYPE i,
+         gs_layout3 TYPE slis_layout_alv,
+         gt_event3 TYPE slis_t_event,
+         gs_event3 TYPE slis_alv_event.
+
+  PERFORM fillfcat TABLES lt_fcat3 USING :  'vbeln' 'Sales Document' CHANGING l_pos3,
+                                'erdat' 'Date' CHANGING l_pos3,
+                                'ernam' 'Name of Person' CHANGING l_pos3,
+                                'angdt' 'Quatation/inquiry is valid from' CHANGING l_pos3,
+                                'vkorg' 'Sales Organization' CHANGING l_pos3,
+                                'posnr' 'Sales Document Item' CHANGING l_pos3,
+                                'matnr' 'Material' CHANGING l_pos3,
+                                'kwmeng'  'Quantity' CHANGING l_pos3,
+                                'netpr'   'Net Value' CHANGING l_pos3,
+                                'vbelv'   'Preceding SD' CHANGING l_pos3,
+                                'posnv'   'Preceding item SD' CHANGING l_pos3,
+                                'posnn'   'Subsequent SD' CHANGING l_pos3,
+                                'vbtyp_n' 'Document Category' CHANGING l_pos3.
+
+  gs_layout3-colwidth_optimize = 'X'.
+
+ gs_event3-name = 'TOP_OF_PAGE'.
+ gs_event3-form = 'TOP_DELIVERY'.
+ APPEND gs_event3 TO gt_event3.
+ CLEAR gs_event3.
+
+ gs_event3-name = 'USER_COMMAND'.
+ gs_event3-form = 'UC4'.
+ APPEND gs_event3 TO gt_event3.
+ CLEAR gs_event3.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = sy-cprog
+      is_layout          = gs_layout3
+      it_fieldcat        = lt_fcat3
+     IT_EVENTS           = gt_event3
+    TABLES
+      t_outtab           = gt_delivery.
+ENDFORM.
+FORM TOP_DELIVERY.
+    DATA : lt_list3 TYPE slis_t_listheader,
+         ls_list3 TYPE slis_listheader.
+  ls_list3-typ = 'H'.
+  ls_list3-info = 'DELIVERY DETAILS'.
+  APPEND ls_list3 TO lt_list3.
+  CLEAR ls_list3.
+
+  CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+    EXPORTING
+      it_list_commentary       = lt_list3.
+ENDFORM.
+
+FORM UC4  USING A LIKE sy-ucomm B TYPE slis_selfield.
+    IF B-fieldname = 'vbeln'.
+    lv_delivery = b-value.
+    PERFORM getinvoice.
+    PERFORM prepareinvoice.
+    PERFORM displayinvoice.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GETINVOICE
+*&---------------------------------------------------------------------*
+FORM getinvoice .
+    SELECT vbeln
+         erdat
+         ernam
+         angdt
+         vkorg
+    FROM vbak
+    INTO TABLE gt_vbak
+    WHERE vbeln IN s_vbeln.
+
+  IF gt_vbak IS NOT INITIAL.
+    SELECT vbeln
+           posnr
+           matnr
+           kwmeng
+           netpr
+      FROM vbap
+      INTO TABLE gt_vbap
+      FOR ALL ENTRIES IN gt_vbak
+      WHERE vbeln = gt_vbak-vbeln.
+
+    IF sy-subrc = 0.
+      SORT gt_vbap BY vbeln posnr.
+    ENDIF.
+  ENDIF.
+
+  IF gt_vbap IS NOT INITIAL.
+    SELECT vbelv
+           posnv
+           vbeln
+           posnn
+           vbtyp_n
+      FROM vbfa
+      INTO TABLE gt_vbfa
+      FOR ALL ENTRIES IN gt_vbap
+      WHERE vbelv = gt_vbap-vbeln
+      AND vbtyp_n = 'M'.
+
+    IF sy-subrc = 0.
+      SORT gt_vbfa BY vbeln posnn.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  PREPAREINVOICE
+*&---------------------------------------------------------------------*
+FORM prepareinvoice .
+  REFRESH gt_invoice.
+  LOOP AT gt_vbak INTO gs_vbak.
+    gs_invoice-vbeln = gs_vbak-vbeln.
+    gs_invoice-erdat = gs_vbak-erdat.
+    gs_invoice-ernam = gs_vbak-ernam.
+    gs_invoice-angdt = gs_vbak-angdt.
+    gs_invoice-vkorg = gs_vbak-vkorg.
+
+    LOOP AT gt_vbap INTO gs_vbap WHERE vbeln = gs_vbak-vbeln.
+*  gs_inquiry-vbeln = gs_vbap-vbeln.
+      gs_invoice-posnr = gs_vbap-posnr.
+      gs_invoice-matnr = gs_vbap-matnr.
+      gs_invoice-kwmeng = gs_vbap-kwmeng.
+      gs_invoice-netpr = gs_vbap-netpr.
+      LOOP AT gt_vbfa INTO gs_vbfa WHERE vbelv = gs_vbap-vbeln.
+*                   AND posnn = gs_vbap-posnr.
+        gs_invoice-vbelv =    gs_vbfa-vbelv.
+        gs_invoice-posnv =    gs_vbfa-posnv.
+*  gs_inquiry-vbeln =    gs_vbfa-vbeln.
+        gs_invoice-posnn =    gs_vbfa-posnn.
+        gs_invoice-vbtyp_n =  gs_vbfa-vbtyp_n.
+        APPEND gs_invoice TO gt_invoice.
+        CLEAR gs_invoice.
+      ENDLOOP.
+    ENDLOOP.
+  ENDLOOP.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAYINVOICE
+*&---------------------------------------------------------------------*
+FORM displayinvoice .
+ DATA : lt_fcat4   TYPE slis_t_fieldcat_alv,
+         ls_fcat4   TYPE slis_fieldcat_alv,
+         l_pos4    TYPE i,
+         gs_layout4 TYPE slis_layout_alv,
+         gt_event4 TYPE slis_t_event,
+         gs_event4 TYPE slis_alv_event.
+
+  PERFORM fillfcat TABLES lt_fcat4 USING :  'vbeln' 'Sales Document' CHANGING l_pos4,
+                                'erdat' 'Date' CHANGING l_pos4,
+                                'ernam' 'Name of Person' CHANGING l_pos4,
+                                'angdt' 'Quatation/inquiry is valid from' CHANGING l_pos4,
+                                'vkorg' 'Sales Organization' CHANGING l_pos4,
+                                'posnr' 'Sales Document Item' CHANGING l_pos4,
+                                'matnr' 'Material' CHANGING l_pos4,
+                                'kwmeng'  'Quantity' CHANGING l_pos4,
+                                'netpr'   'Net Value' CHANGING l_pos4,
+                                'vbelv'   'Preceding SD' CHANGING l_pos4,
+                                'posnv'   'Preceding item SD' CHANGING l_pos4,
+                                'posnn'   'Subsequent SD' CHANGING l_pos4,
+                                'vbtyp_n' 'Document Category' CHANGING l_pos4.
+
+  gs_layout4-colwidth_optimize = 'X'.
+
+ gs_event4-name = 'TOP_OF_PAGE'.
+ gs_event4-form = 'TOP_INVOICE'.
+ APPEND gs_event4 TO gt_event4.
+ CLEAR gs_event4.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = sy-cprog
+      is_layout          = gs_layout4
+      it_fieldcat        = lt_fcat4
+     IT_EVENTS          = gt_event4
+    TABLES
+      t_outtab           = gt_invoice.
+ENDFORM.
+
+FORM TOP_INVOICE.
+      DATA : lt_list4 TYPE slis_t_listheader,
+         ls_list4 TYPE slis_listheader.
+  ls_list4-typ = 'H'.
+  ls_list4-info = 'DELIVERY DETAILS'.
+  APPEND ls_list4 TO lt_list4.
+  CLEAR ls_list4.
+
+  CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+    EXPORTING
+      it_list_commentary       = lt_list4.
+ENDFORM.
